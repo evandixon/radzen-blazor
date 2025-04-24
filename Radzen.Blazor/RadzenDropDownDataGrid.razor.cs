@@ -116,7 +116,7 @@ namespace Radzen.Blazor
             if (Disabled)
                 return;
 
-            if (IsVirtualizationAllowed())
+            if (IsVirtualizationAllowed() || DelayLoadDataUntilFirstOpen)
             {
                 await grid.RefreshDataAsync();
             }
@@ -132,6 +132,9 @@ namespace Radzen.Blazor
             {
                 await JSRuntime.InvokeVoidAsync("Radzen.selectListItem", search, list, selectedIndex);
             }
+
+            await OnOpenPopup.InvokeAsync();
+            hasPopupOpenedOnce = true;
         }
 
         /// <summary>
@@ -356,11 +359,35 @@ namespace Radzen.Blazor
         public bool FocusFilterOnPopup { get; set; } = true;
 
         /// <summary>
+        /// Callback for when the dropdown is opened
+        /// </summary>
+        [Parameter]
+        public EventCallback OnOpenPopup { get; set; }
+
+        /// <summary>
+        /// Whether to load data only after the first time the dropdown is opened.
+        /// </summary>
+        /// <remarks>
+        /// If false, the first call to <see cref="PagedDataBoundComponent{T}.LoadData"/> will be when the dropdown is first rendered.
+        /// If true, the first call to <see cref="PagedDataBoundComponent{T}.LoadData"/> will be when the dropdown is first opened.
+        /// This setting may be useful if the page will have multiple instances of this control that each make API calls to load their data.
+        /// </remarks>
+        [Parameter]
+        public bool DelayLoadDataUntilFirstOpen { get; set; }
+
+        /// <summary>
+        /// Whether the dropdown has been previously opened at least once.
+        /// If accessing this as part of <see cref="OnOpenPopup"/>, this will initially be false.
+        /// </summary>
+        protected bool hasPopupOpenedOnce;
+
+        /// <summary>
         /// Gets popup element reference.
         /// </summary>
         protected ElementReference popup;
 
         bool isFirstRender;
+
         /// <summary>
         /// Called when [after render asynchronous].
         /// </summary>
@@ -372,7 +399,7 @@ namespace Radzen.Blazor
 
             if (firstRender)
             {
-                if(Visible && LoadData.HasDelegate && Data == null)
+                if(Visible && LoadData.HasDelegate && Data == null && !DelayLoadDataUntilFirstOpen)
                 {
                     await LoadData.InvokeAsync(new Radzen.LoadDataArgs() { Skip = 0, Top = PageSize, Filter = searchText });
                 }
